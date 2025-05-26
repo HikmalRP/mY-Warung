@@ -224,7 +224,7 @@ class _FormPembayaranState extends State<FormPembayaran> {
   }) async {
     try {
       final uri = Uri.parse(
-          "https://honeydew-panther-755692.hostingersite.com//save_transaction.php");
+          "http://10.0.2.2/mY_Warung/Web/pembeli/save_transaction.php");
       final request = http.MultipartRequest('POST', uri);
 
       request.fields['username'] = widget.username;

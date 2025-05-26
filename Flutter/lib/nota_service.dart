@@ -17,8 +17,7 @@ class NotaService {
     String? imagePath,
   }) async {
     final pdf = pw.Document();
-
-    // Membuat halaman PDF
+// Membuat halaman PDF
     pdf.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.a4,
@@ -29,7 +28,7 @@ class NotaService {
             children: [
               // Header: Nama aplikasi
               pw.Text(
-                "Warung Ajib",
+                "mY Warung",
                 style: pw.TextStyle(
                   fontSize: 24,
                   fontWeight: pw.FontWeight.bold,
@@ -130,7 +129,7 @@ class NotaService {
               pw.Divider(thickness: 1),
               pw.Center(
                 child: pw.Text(
-                  "Terima kasih telah berbelanja di Warung Ajib!",
+                  "Terima kasih telah berbelanja di mY Warung!",
                   style: pw.TextStyle(
                       fontSize: 14, fontStyle: pw.FontStyle.italic),
                 ),
@@ -141,23 +140,30 @@ class NotaService {
       ),
     );
 
-    // Membuka dialog pemilih lokasi untuk menyimpan file
+// Memilih folder penyimpanan
     String? selectedDirectory = await FilePicker.platform.getDirectoryPath();
     if (selectedDirectory == null) {
-      // Jika pengguna tidak memilih lokasi, kembalikan null
       print("Penyimpanan dibatalkan.");
       return null;
     }
 
-    // Membuat jalur file dengan nama file default
-    final filePath = '$selectedDirectory/nota_pembayaran.pdf';
+// Menentukan nama file unik
+    String baseFileName = 'nota_pembayaran';
+    String extension = '.pdf';
+    String fullPath = '$selectedDirectory/$baseFileName$extension';
+    int counter = 1;
 
-    // Menyimpan file PDF
-    final file = File(filePath);
+    while (File(fullPath).existsSync()) {
+      fullPath = '$selectedDirectory/$baseFileName ($counter)$extension';
+      counter++;
+    }
+
+// Menyimpan file PDF
+    final file = File(fullPath);
     await file.writeAsBytes(await pdf.save());
 
-    print("Nota berhasil disimpan di $filePath");
-    return filePath;
+    print("Nota berhasil disimpan di $fullPath");
+    return fullPath;
   }
 
   pw.Widget _buildDetailRow(String label, String value) {

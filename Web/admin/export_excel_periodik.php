@@ -1,5 +1,5 @@
 <?php
-require_once 'db_connection.php';
+require_once '../db_connection.php';
 require 'vendor/autoload.php'; // Pastikan library PhpSpreadsheet terinstal
 
 use PhpOffice\PhpSpreadsheet\Spreadsheet;

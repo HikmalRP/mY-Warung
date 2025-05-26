@@ -1,12 +1,10 @@
 <?php
 session_start();
-require_once 'db_connection.php';
+require_once '../db_connection.php';
 
 // Cek apakah admin sudah login
-if (!isset($_SESSION['admin_logged_in'])) {
-    header("Location: admin_login.php");
-    exit();
-}
+require_once 'auth_admin.php';
+// Jika belum login, redirect ke halaman login
 
 // Instansiasi koneksi database
 $db = new DBConnection();
@@ -18,10 +16,11 @@ $sales = $salesQuery->fetch_all(MYSQLI_ASSOC);
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Laporan Penjualan</title>
+    <title>Laporan Penjualan (Admin)</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body {
@@ -42,6 +41,7 @@ $sales = $salesQuery->fetch_all(MYSQLI_ASSOC);
         }
     </style>
 </head>
+
 <body>
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
@@ -49,7 +49,7 @@ $sales = $salesQuery->fetch_all(MYSQLI_ASSOC);
             <a class="navbar-brand" href="index.php">Admin Panel</a>
             <div class="d-flex">
                 <span class="navbar-text text-white me-3">Welcome, <?= $_SESSION['admin_username'] ?></span>
-                <a href="admin_login.php" class="btn btn-danger btn-sm">Logout</a>
+                <a href="logout.php" class="btn btn-danger btn-sm">Logout</a>
             </div>
         </div>
     </nav>
@@ -108,4 +108,5 @@ $sales = $salesQuery->fetch_all(MYSQLI_ASSOC);
     </main>
 
 </body>
+
 </html>

@@ -434,29 +434,6 @@ class _HalamanDashboardState extends State<HalamanDashboard> {
     );
   }
 
-  Future<void> _launchCaller() async {
-    final Uri uri = Uri(scheme: "tel", path: "+6282223509038");
-    if (!await launchUrl(uri)) {
-      throw Exception("Gagal membuka link!");
-    }
-  }
-
-  Future<void> _launchSMS() async {
-    final Uri uri = Uri(scheme: "sms", path: "+6282223509038");
-    if (!await launchUrl(uri)) {
-      throw Exception("Gagal membuka link!");
-    }
-  }
-
-  Future<void> _launchMap() async {
-    const mapUrl = "https://maps.app.goo.gl/GSAz8wbbS8NK5ALE9";
-    if (await canLaunch(mapUrl)) {
-      await launch(mapUrl);
-    } else {
-      throw "Gagal membuka link! $mapUrl";
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -474,15 +451,6 @@ class _HalamanDashboardState extends State<HalamanDashboard> {
               PopupMenuButton<String>(
                 onSelected: (value) {
                   switch (value) {
-                    case 'Call Center':
-                      _launchCaller();
-                      break;
-                    case 'SMS Center':
-                      _launchSMS();
-                      break;
-                    case 'Lokasi/Maps':
-                      _launchMap();
-                      break;
                     case 'Update User & Password':
                       Navigator.push(
                         context,
@@ -511,14 +479,7 @@ class _HalamanDashboardState extends State<HalamanDashboard> {
                 },
                 itemBuilder: (BuildContext context) => [
                   const PopupMenuItem(
-                      value: 'Call Center', child: Text('Call Center')),
-                  const PopupMenuItem(
-                      value: 'SMS Center', child: Text('SMS Center')),
-                  const PopupMenuItem(
-                      value: 'Lokasi/Maps', child: Text('Lokasi/Maps')),
-                  const PopupMenuItem(
-                      value: 'Update User & Password',
-                      child: Text('Update User & Password')),
+                      value: 'Update User & Password', child: Text('Profile')),
                   const PopupMenuDivider(),
                   const PopupMenuItem(
                       value: 'Refresh Dashboard',

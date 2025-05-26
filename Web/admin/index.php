@@ -1,21 +1,22 @@
 <?php
 session_start();
-require_once 'db_connection.php';
+require_once '../db_connection.php';
 
-if (!isset($_SESSION['admin_logged_in'])) {
-    header("Location: admin_login.php");
-    exit();
-}
+// Cek apakah admin sudah login
+require_once 'auth_admin.php';
+// Jika belum login, redirect ke halaman login
 
 // Buat koneksi database
 $db = new DBConnection();
 
-// Ambil informasi untuk ditampilkan di dashboard
 // Total Produk
 $totalProduk = $db->conn->query("SELECT COUNT(*) AS total FROM db_produk")->fetch_assoc()['total'];
 
-// Total Konsumen
-$totalKonsumen = $db->conn->query("SELECT COUNT(*) AS total FROM db_user")->fetch_assoc()['total'];
+// Total Pembeli
+$totalPembeli = $db->conn->query("SELECT COUNT(*) AS total FROM db_user")->fetch_assoc()['total'];
+
+// Total Penjual
+$totalPenjual = $db->conn->query("SELECT COUNT(*) AS total FROM db_penjual")->fetch_assoc()['total'];
 
 // Total Transaksi Penjualan
 $totalPenjualan = $db->conn->query("SELECT COUNT(*) AS total FROM db_jual")->fetch_assoc()['total'];
@@ -27,6 +28,7 @@ $totalPendapatan = $totalPendapatan ?? 0; // Null jika tidak ada data
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -38,9 +40,11 @@ $totalPendapatan = $totalPendapatan ?? 0; // Null jika tidak ada data
             flex-direction: column;
             min-height: 100vh;
         }
+
         .content {
             flex: 1;
         }
+
         .footer {
             background-color: #343a40;
             color: white;
@@ -49,6 +53,7 @@ $totalPendapatan = $totalPendapatan ?? 0; // Null jika tidak ada data
         }
     </style>
 </head>
+
 <body>
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
@@ -56,7 +61,7 @@ $totalPendapatan = $totalPendapatan ?? 0; // Null jika tidak ada data
             <a class="navbar-brand" href="index.php">Admin Panel</a>
             <div class="d-flex">
                 <span class="navbar-text text-white me-3">Welcome, <?= $_SESSION['admin_username'] ?></span>
-                <a href="admin_login.php" class="btn btn-danger btn-sm">Logout</a>
+                <a href="logout.php" class="btn btn-danger btn-sm">Logout</a>
             </div>
         </div>
     </nav>
@@ -65,9 +70,9 @@ $totalPendapatan = $totalPendapatan ?? 0; // Null jika tidak ada data
     <div class="content">
         <div class="container mt-4">
             <h1 class="text-center mb-4">Admin Dashboard</h1>
-            <div class="row g-4">
+            <div class="row g-4 justify-content-center">
                 <!-- Kelola Produk -->
-                <div class="col-md-6 col-lg-3">
+                <div class="col-12 col-md-6 col-lg-2">
                     <div class="card text-center shadow-sm">
                         <div class="card-body">
                             <h5 class="card-title">Kelola Produk</h5>
@@ -77,19 +82,30 @@ $totalPendapatan = $totalPendapatan ?? 0; // Null jika tidak ada data
                     </div>
                 </div>
 
-                <!-- Kelola Konsumen -->
-                <div class="col-md-6 col-lg-3">
+                <!-- Kelola Pembeli -->
+                <div class="col-12 col-md-6 col-lg-2">
                     <div class="card text-center shadow-sm">
                         <div class="card-body">
-                            <h5 class="card-title">Kelola Konsumen</h5>
-                            <p class="card-text">Total Konsumen: <strong><?= $totalKonsumen ?></strong></p>
-                            <a href="kelola_konsumen.php" class="btn btn-primary w-100">Lihat Konsumen</a>
+                            <h5 class="card-title">Kelola Pembeli</h5>
+                            <p class="card-text">Total Pembeli: <strong><?= $totalPembeli ?></strong></p>
+                            <a href="kelola_pembeli.php" class="btn btn-primary w-100">Lihat Pembeli</a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Kelola Penjual -->
+                <div class="col-12 col-md-6 col-lg-2">
+                    <div class="card text-center shadow-sm">
+                        <div class="card-body">
+                            <h5 class="card-title">Kelola Penjual</h5>
+                            <p class="card-text">Total Penjual: <strong><?= $totalPenjual ?></strong></p>
+                            <a href="kelola_penjual.php" class="btn btn-primary w-100">Lihat Penjual</a>
                         </div>
                     </div>
                 </div>
 
                 <!-- Laporan Penjualan Global -->
-                <div class="col-md-6 col-lg-3">
+                <div class="col-12 col-md-6 col-lg-2">
                     <div class="card text-center shadow-sm">
                         <div class="card-body">
                             <h5 class="card-title">Laporan Penjualan Global</h5>
@@ -101,10 +117,10 @@ $totalPendapatan = $totalPendapatan ?? 0; // Null jika tidak ada data
                 </div>
 
                 <!-- Laporan Periodik -->
-                <div class="col-md-6 col-lg-3">
+                <div class="col-12 col-md-6 col-lg-2">
                     <div class="card text-center shadow-sm">
                         <div class="card-body">
-                            <h5 class="card-title">Laporan Periodik</h5>
+                            <h5 class="card-title">Laporan Periodik Global</h5>
                             <p class="card-text">Lihat data berdasarkan periode</p>
                             <a href="laporan_periodik.php" class="btn btn-primary w-100">Lihat Periodik</a>
                         </div>
@@ -116,9 +132,10 @@ $totalPendapatan = $totalPendapatan ?? 0; // Null jika tidak ada data
 
     <!-- Footer -->
     <footer class="footer mt-4">
-        <p class="mb-0">&copy; <?= date('Y') ?> Aku Admin</p>
+        <p class="mb-0">&copy; <?= date('Y') ?> mY Warung</p>
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
 </body>
+
 </html>

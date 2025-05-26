@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 class APIHelper {
   static final APIHelper _instance = APIHelper._init();
   static const String _baseUrl =
-      'https://honeydew-panther-755692.hostingersite.com/api.php';
+      'http://10.0.2.2/mY_Warung/Web/pembeli/api.php';
 
   APIHelper._init();
 

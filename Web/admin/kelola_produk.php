@@ -1,36 +1,41 @@
 <?php
-require_once 'db_connection.php';
+require_once '../db_connection.php';
 session_start();
 
 // Cek apakah admin sudah login
-if (!isset($_SESSION['admin_logged_in'])) {
-    header("Location: admin_login.php");
-    exit();
-}
+require_once 'auth_admin.php';
 
-// Instansiasi objek DBConnection
 $db = new DBConnection();
+$error = null;
 
-// Tambah Produk
+/* Tambah Produk
 if (isset($_POST['add_product'])) {
     $nama = $_POST['nama'];
     $deskripsi = $_POST['deskripsi'];
     $harga = $_POST['harga'];
 
-    // Upload gambar
-    $gambar = null;
-    if (!empty($_FILES['gambar']['name'])) {
-        $gambar = 'uploads/' . basename($_FILES['gambar']['name']);
-        move_uploaded_file($_FILES['gambar']['tmp_name'], $gambar);
-    }
+    // Cek duplikat nama produk
+    $cek = $db->conn->prepare("SELECT id FROM db_produk WHERE nama = ?");
+    $cek->bind_param("s", $nama);
+    $cek->execute();
+    $cekResult = $cek->get_result();
+    if ($cekResult->num_rows > 0) {
+        $error = "Nama produk \"$nama\" sudah ada.";
+    } else {
+        $gambar = null;
+        if (!empty($_FILES['gambar']['name'])) {
+            $gambar = '/uploads/' . basename($_FILES['gambar']['name']);
+            move_uploaded_file($_FILES['gambar']['tmp_name'], $gambar);
+        }
 
-    // Query untuk menambahkan produk
-    $query = $db->conn->prepare("INSERT INTO db_produk (nama, deskripsi, linkGambar, harga) VALUES (?, ?, ?, ?)");
-    $query->bind_param("sssi", $nama, $deskripsi, $gambar, $harga);
-    $query->execute();
-    header("Location: kelola_produk.php");
-    exit();
+        $query = $db->conn->prepare("INSERT INTO db_produk (nama, deskripsi, linkGambar, harga) VALUES (?, ?, ?, ?)");
+        $query->bind_param("sssi", $nama, $deskripsi, $gambar, $harga);
+        $query->execute();
+        header("Location: kelola_produk.php");
+        exit();
+    }
 }
+*/
 
 // Edit Produk
 if (isset($_POST['edit_product'])) {
@@ -39,26 +44,31 @@ if (isset($_POST['edit_product'])) {
     $deskripsi = $_POST['deskripsi'];
     $harga = $_POST['harga'];
 
-    // Upload gambar jika diupdate
-    $gambar = $_POST['existing_image'];
-    if (!empty($_FILES['gambar']['name'])) {
-        $gambar = 'uploads/' . basename($_FILES['gambar']['name']);
-        move_uploaded_file($_FILES['gambar']['tmp_name'], $gambar);
-    }
+    // Cek duplikat nama kecuali dirinya sendiri
+    $cek = $db->conn->prepare("SELECT id FROM db_produk WHERE nama = ? AND id != ?");
+    $cek->bind_param("si", $nama, $id);
+    $cek->execute();
+    $cekResult = $cek->get_result();
+    if ($cekResult->num_rows > 0) {
+        $error = "Nama produk \"$nama\" sudah digunakan produk lain.";
+    } else {
+        $gambar = $_POST['existing_image'];
+        if (!empty($_FILES['gambar']['name'])) {
+            $gambar = '/uploads/' . basename($_FILES['gambar']['name']);
+            move_uploaded_file($_FILES['gambar']['tmp_name'], $gambar);
+        }
 
-    // Query untuk mengupdate produk
-    $query = $db->conn->prepare("UPDATE db_produk SET nama = ?, deskripsi = ?, linkGambar = ?, harga = ? WHERE id = ?");
-    $query->bind_param("sssii", $nama, $deskripsi, $gambar, $harga, $id);
-    $query->execute();
-    header("Location: kelola_produk.php");
-    exit();
+        $query = $db->conn->prepare("UPDATE db_produk SET nama = ?, deskripsi = ?, linkGambar = ?, harga = ? WHERE id = ?");
+        $query->bind_param("sssii", $nama, $deskripsi, $gambar, $harga, $id);
+        $query->execute();
+        header("Location: kelola_produk.php");
+        exit();
+    }
 }
 
 // Hapus Produk
 if (isset($_GET['delete_id'])) {
     $id = $_GET['delete_id'];
-
-    // Query untuk menghapus produk
     $query = $db->conn->prepare("DELETE FROM db_produk WHERE id = ?");
     $query->bind_param("i", $id);
     $query->execute();
@@ -67,22 +77,27 @@ if (isset($_GET['delete_id'])) {
 }
 
 // Ambil semua data produk
-$productsQuery = $db->conn->query("SELECT * FROM db_produk");
+$productsQuery = $db->conn->query("
+    SELECT db_produk.*, db_penjual.nama_warung 
+    FROM db_produk 
+    LEFT JOIN db_penjual ON db_produk.id_penjual = db_penjual.id
+");
 $products = $productsQuery->fetch_all(MYSQLI_ASSOC);
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kelola Produk</title>
+    <title>Kelola Produk (Admin)</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         .image-preview {
             max-height: 100px;
             margin-top: 10px;
         }
+
         body {
             display: flex;
             flex-direction: column;
@@ -101,23 +116,26 @@ $products = $productsQuery->fetch_all(MYSQLI_ASSOC);
         }
     </style>
 </head>
+
 <body>
-    <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container-fluid">
             <a class="navbar-brand" href="index.php">Admin Panel</a>
             <div class="d-flex">
                 <span class="navbar-text text-white me-3">Welcome, <?= $_SESSION['admin_username'] ?></span>
-                <a href="admin_login.php" class="btn btn-danger btn-sm">Logout</a>
+                <a href="logout.php" class="btn btn-danger btn-sm">Logout</a>
             </div>
         </div>
     </nav>
 
-    <!-- Kelola Produk Content -->
     <div class="container mt-4">
         <h1 class="text-center mb-4">Kelola Produk</h1>
 
-        <!-- Tambah Produk -->
+        <?php if ($error): ?>
+            <div class="alert alert-danger text-center"><?= htmlspecialchars($error) ?></div>
+        <?php endif; ?>
+
+        <!-- Tambah Produk
         <div class="card shadow-sm mb-4">
             <div class="card-body">
                 <h5 class="card-title">Tambah Produk</h5>
@@ -143,6 +161,7 @@ $products = $productsQuery->fetch_all(MYSQLI_ASSOC);
                 </form>
             </div>
         </div>
+        -->
 
         <!-- Tabel Produk -->
         <div class="card shadow-sm">
@@ -156,6 +175,7 @@ $products = $productsQuery->fetch_all(MYSQLI_ASSOC);
                             <th>Deskripsi</th>
                             <th>Gambar</th>
                             <th>Harga</th>
+                            <th>Nama Warung</th>
                             <th>Aksi</th>
                         </tr>
                     </thead>
@@ -167,17 +187,13 @@ $products = $productsQuery->fetch_all(MYSQLI_ASSOC);
                                 <td><?= htmlspecialchars($product['deskripsi'], ENT_QUOTES, 'UTF-8') ?></td>
                                 <td>
                                     <?php if (!empty($product['linkGambar'])): ?>
-                                        <img src="<?= htmlspecialchars($product['linkGambar'], ENT_QUOTES, 'UTF-8') ?>" alt="<?= htmlspecialchars($product['nama'], ENT_QUOTES, 'UTF-8') ?>" style="max-height: 100px;">
-                                    <?php else: ?>
-                                        Tidak ada gambar
-                                    <?php endif; ?>
+                                        <img src="../<?= htmlspecialchars($product['linkGambar'], ENT_QUOTES, 'UTF-8') ?>" alt="<?= htmlspecialchars($product['nama'], ENT_QUOTES, 'UTF-8') ?>" style="max-height: 100px;">
+                                        <?php else: ?>Tidak ada gambar<?php endif; ?>
                                 </td>
                                 <td>Rp <?= number_format($product['harga'], 0, ',', '.') ?></td>
+                                <td><?= htmlspecialchars($product['nama_warung'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
                                 <td>
-                                    <!-- Edit Button -->
                                     <button class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#editModal<?= $product['id'] ?>">Edit</button>
-
-                                    <!-- Hapus Button -->
                                     <a href="kelola_produk.php?delete_id=<?= $product['id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('Hapus produk ini?')">Hapus</a>
 
                                     <!-- Modal Edit -->
@@ -193,20 +209,20 @@ $products = $productsQuery->fetch_all(MYSQLI_ASSOC);
                                                         <input type="hidden" name="id" value="<?= $product['id'] ?>">
                                                         <input type="hidden" name="existing_image" value="<?= htmlspecialchars($product['linkGambar'], ENT_QUOTES, 'UTF-8') ?>">
                                                         <div class="mb-3">
-                                                            <label for="nama" class="form-label">Nama Produk</label>
+                                                            <label class="form-label">Nama Produk</label>
                                                             <input type="text" name="nama" class="form-control" value="<?= htmlspecialchars($product['nama'], ENT_QUOTES, 'UTF-8') ?>" required>
                                                         </div>
                                                         <div class="mb-3">
-                                                            <label for="deskripsi" class="form-label">Deskripsi Produk</label>
+                                                            <label class="form-label">Deskripsi Produk</label>
                                                             <textarea name="deskripsi" class="form-control"><?= htmlspecialchars($product['deskripsi'], ENT_QUOTES, 'UTF-8') ?></textarea>
                                                         </div>
                                                         <div class="mb-3">
-                                                            <label for="gambar" class="form-label">Gambar</label>
+                                                            <label class="form-label">Gambar</label>
                                                             <input type="file" name="gambar" class="form-control" accept="image/*" onchange="previewImage(event, 'edit-image-preview-<?= $product['id'] ?>')">
-                                                            <img id="edit-image-preview-<?= $product['id'] ?>" class="image-preview" src="<?= htmlspecialchars($product['linkGambar'], ENT_QUOTES, 'UTF-8') ?>" />
+                                                            <img id="edit-image-preview-<?= $product['id'] ?>" class="image-preview" src="../<?= htmlspecialchars($product['linkGambar'], ENT_QUOTES, 'UTF-8') ?>" />
                                                         </div>
                                                         <div class="mb-3">
-                                                            <label for="harga" class="form-label">Harga Produk</label>
+                                                            <label class="form-label">Harga Produk</label>
                                                             <input type="number" name="harga" class="form-control" value="<?= $product['harga'] ?>" required>
                                                         </div>
                                                     </div>
@@ -231,7 +247,7 @@ $products = $productsQuery->fetch_all(MYSQLI_ASSOC);
     <script>
         function previewImage(event, previewId) {
             const reader = new FileReader();
-            reader.onload = function () {
+            reader.onload = function() {
                 const output = document.getElementById(previewId);
                 output.src = reader.result;
             };
@@ -239,4 +255,5 @@ $products = $productsQuery->fetch_all(MYSQLI_ASSOC);
         }
     </script>
 </body>
+
 </html>

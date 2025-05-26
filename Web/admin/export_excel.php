@@ -1,5 +1,5 @@
 <?php
-require_once 'db_connection.php';
+require_once '../db_connection.php';
 require 'vendor/autoload.php'; // Pastikan Anda sudah menginstal PhpSpreadsheet
 
 use PhpOffice\PhpSpreadsheet\Spreadsheet;

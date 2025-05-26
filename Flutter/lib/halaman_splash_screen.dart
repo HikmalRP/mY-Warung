@@ -53,7 +53,7 @@ class _HalamanSplashScreenState extends State<HalamanSplashScreen> {
                   ),
             ),
             Text(
-              "Warung Ajib",
+              "mY Warung",
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     fontSize: 30,
                     fontWeight: FontWeight.bold,

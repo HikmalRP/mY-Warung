@@ -21,7 +21,7 @@ class HalamanItem extends StatelessWidget {
                     item['linkGambar'],
                     fit: BoxFit.cover,
                     width: double.infinity,
-                    height: 200, // Menambahkan tinggi gambar agar proporsional
+                    height: 200,
                     errorBuilder: (_, __, ___) => Container(
                       color: Colors.grey[300],
                       alignment: Alignment.center,
@@ -43,6 +43,14 @@ class HalamanItem extends StatelessWidget {
             Text(
               item['deskripsi'] ?? 'Deskripsi tidak tersedia',
               style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              "Warung: ${item['nama_warung'] ?? 'Tidak diketahui'}",
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Colors.blueGrey[700],
+                    fontWeight: FontWeight.w500,
+                  ),
             ),
             const SizedBox(height: 8),
             Text(

@@ -1,9 +1,9 @@
 <?php
 class DBConnection {
     private $host = 'localhost';
-    private $user = 'Masukin User';
-    private $password = 'Masukin Password';
-    private $database = 'Masukin Password';
+    private $user = 'root';
+    private $password = '';
+    private $database = 'uas_ppb';
     public $conn;
 
     public function __construct() {

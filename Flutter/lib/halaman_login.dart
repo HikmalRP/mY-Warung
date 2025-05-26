@@ -50,7 +50,7 @@ class _HalamanLoginState extends State<HalamanLogin> {
 
     // Kirim permintaan ke API login
     final response = await http.post(
-      Uri.parse('https://honeydew-panther-755692.hostingersite.com//login.php'),
+      Uri.parse('http://10.0.2.2/mY_Warung/Web/pembeli/login.php'),
       body: {
         'username': usernameController.text,
         'password': passwordController.text,
