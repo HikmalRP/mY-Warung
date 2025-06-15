@@ -109,8 +109,8 @@ $totalPendapatan = $totalPendapatan ?? 0; // Null jika tidak ada data
                     <div class="card text-center shadow-sm">
                         <div class="card-body">
                             <h5 class="card-title">Laporan Penjualan Global</h5>
-                            <p class="card-text">Total Transaksi: <strong><?= $totalPenjualan ?></strong></p>
-                            <p class="card-text">Pendapatan: <strong>Rp <?= number_format($totalPendapatan, 0, ',', '.') ?></strong></p>
+                            <p class="card-text">Total Jumlah Transaksi: <strong><?= $totalPenjualan ?></strong></p>
+                            <p class="card-text">Total Transaksi: <strong>Rp <?= number_format($totalPendapatan, 0, ',', '.') ?></strong></p>
                             <a href="laporan_penjualan.php" class="btn btn-primary w-100">Lihat Laporan</a>
                         </div>
                     </div>
