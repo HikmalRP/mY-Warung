@@ -6,14 +6,15 @@ require_once 'auth_penjual.php';
 $db = new DBConnection();
 $id_penjual = $_SESSION['penjual_id'];
 
-// Ambil nama produk milik penjual
-$produkQuery = $db->conn->prepare("SELECT nama FROM db_produk WHERE id_penjual = ?");
+// Ambil produk milik penjual
+$produkQuery = $db->conn->prepare("SELECT nama, harga FROM db_produk WHERE id_penjual = ?");
 $produkQuery->bind_param("i", $id_penjual);
 $produkQuery->execute();
 $produkResult = $produkQuery->get_result();
-$namaProduks = [];
+
+$produkMap = []; // key: nama_produk, value: harga
 while ($row = $produkResult->fetch_assoc()) {
-    $namaProduks[] = $row['nama'];
+    $produkMap[$row['nama']] = $row['harga'];
 }
 
 // Ambil seluruh transaksi dan filter yang terkait dengan penjual
@@ -24,11 +25,21 @@ while ($jual = $rawQuery->fetch_assoc()) {
     $items = json_decode($jual['items'], true);
     if (!is_array($items)) continue;
 
+    $subtotal = 0;
+    $terlibat = false;
+
     foreach ($items as $item) {
-        if (in_array($item['nama'], $namaProduks)) {
-            $sales[] = $jual;
-            break;
+        $nama = $item['nama'] ?? '';
+        $jumlah = (int) ($item['jumlah'] ?? 0);
+        if (isset($produkMap[$nama])) {
+            $terlibat = true;
+            $subtotal += $produkMap[$nama] * $jumlah;
         }
+    }
+
+    if ($terlibat) {
+        $jual['subtotal_penjual'] = $subtotal;
+        $sales[] = $jual;
     }
 }
 ?>
@@ -38,7 +49,6 @@ while ($jual = $rawQuery->fetch_assoc()) {
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Laporan Penjualan (Penjual)</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
@@ -98,7 +108,7 @@ while ($jual = $rawQuery->fetch_assoc()) {
                             <th>Asal</th>
                             <th>Tujuan</th>
                             <th>Kurir</th>
-                            <th>Total Transaksi</th>
+                            <th>Total Pendapatan</th>
                             <th>Tanggal</th>
                         </tr>
                     </thead>
@@ -111,7 +121,7 @@ while ($jual = $rawQuery->fetch_assoc()) {
                                     <td><?= htmlspecialchars($sale['origin'], ENT_QUOTES, 'UTF-8') ?></td>
                                     <td><?= htmlspecialchars($sale['destination'], ENT_QUOTES, 'UTF-8') ?></td>
                                     <td><?= htmlspecialchars($sale['courier'], ENT_QUOTES, 'UTF-8') ?> - <?= htmlspecialchars($sale['service'], ENT_QUOTES, 'UTF-8') ?></td>
-                                    <td>Rp <?= number_format($sale['total_with_shipping'], 0, ',', '.') ?></td>
+                                    <td>Rp <?= number_format($sale['subtotal_penjual'], 0, ',', '.') ?></td>
                                     <td><?= htmlspecialchars($sale['created_at'], ENT_QUOTES, 'UTF-8') ?></td>
                                 </tr>
                             <?php endforeach; ?>

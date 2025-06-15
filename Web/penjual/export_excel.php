@@ -9,31 +9,39 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 $db = new DBConnection();
 $penjual_id = $_SESSION['penjual_id'];
 
-// Ambil nama-nama produk milik penjual ini
-$produkQuery = $db->conn->prepare("SELECT nama FROM db_produk WHERE id_penjual = ?");
+// Ambil nama dan harga produk milik penjual ini
+$produkQuery = $db->conn->prepare("SELECT nama, harga FROM db_produk WHERE id_penjual = ?");
 $produkQuery->bind_param("i", $penjual_id);
 $produkQuery->execute();
 $produkResult = $produkQuery->get_result();
-$produkNama = [];
+$produkMap = []; // nama => harga
 while ($row = $produkResult->fetch_assoc()) {
-    $produkNama[] = $row['nama'];
+    $produkMap[$row['nama']] = $row['harga'];
 }
 
 // Ambil semua transaksi
 $query = $db->conn->query("SELECT dj.*, du.username FROM db_jual dj JOIN db_user du ON dj.user_id = du.id ORDER BY dj.created_at DESC");
-$allSales = $query->fetch_all(MYSQLI_ASSOC);
-
-// Filter transaksi yang mengandung produk milik penjual
 $sales = [];
-foreach ($allSales as $sale) {
-    $items = json_decode($sale['items'], true);
+
+while ($jual = $query->fetch_assoc()) {
+    $items = json_decode($jual['items'], true);
     if (!is_array($items)) continue;
 
+    $subtotal = 0;
+    $terlibat = false;
+
     foreach ($items as $item) {
-        if (in_array($item['nama'], $produkNama)) {
-            $sales[] = $sale;
-            break;
+        $nama = $item['nama'] ?? '';
+        $jumlah = (int)($item['jumlah'] ?? 0);
+        if (isset($produkMap[$nama])) {
+            $subtotal += $produkMap[$nama] * $jumlah;
+            $terlibat = true;
         }
+    }
+
+    if ($terlibat) {
+        $jual['subtotal_penjual'] = $subtotal;
+        $sales[] = $jual;
     }
 }
 
@@ -48,7 +56,7 @@ $sheet->setCellValue('B1', 'Username');
 $sheet->setCellValue('C1', 'Asal');
 $sheet->setCellValue('D1', 'Tujuan');
 $sheet->setCellValue('E1', 'Kurir');
-$sheet->setCellValue('F1', 'Total Transaksi');
+$sheet->setCellValue('F1', 'Total Pendapatan');
 $sheet->setCellValue('G1', 'Tanggal');
 
 // Isi Data
@@ -59,7 +67,7 @@ foreach ($sales as $index => $sale) {
     $sheet->setCellValue('C' . $row, $sale['origin']);
     $sheet->setCellValue('D' . $row, $sale['destination']);
     $sheet->setCellValue('E' . $row, $sale['courier'] . ' - ' . $sale['service']);
-    $sheet->setCellValue('F' . $row, $sale['total_with_shipping']);
+    $sheet->setCellValue('F' . $row, $sale['subtotal_penjual']);
     $sheet->setCellValue('G' . $row, $sale['created_at']);
     $row++;
 }

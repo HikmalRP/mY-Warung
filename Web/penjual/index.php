@@ -11,31 +11,44 @@ $penjual_id = $_SESSION['penjual_id'];
 // Total Produk Penjual
 $totalProduk = $db->conn->query("SELECT COUNT(*) AS total FROM db_produk WHERE id_penjual = $penjual_id")->fetch_assoc()['total'];
 
-// Ambil semua nama produk milik penjual
-$produkQuery = $db->conn->prepare("SELECT nama FROM db_produk WHERE id_penjual = ?");
+// Ambil semua nama dan harga produk milik penjual
+$produkQuery = $db->conn->prepare("SELECT nama, harga FROM db_produk WHERE id_penjual = ?");
 $produkQuery->bind_param("i", $penjual_id);
 $produkQuery->execute();
 $produkResult = $produkQuery->get_result();
-$namaProduks = [];
+
+$produkMap = []; // key: nama produk, value: harga
 while ($row = $produkResult->fetch_assoc()) {
-    $namaProduks[] = $row['nama'];
+    $produkMap[$row['nama']] = $row['harga'];
 }
 
-// Cek semua transaksi dan cocokkan produk
+// Ambil semua transaksi
 $penjualanQuery = $db->conn->query("SELECT * FROM db_jual ORDER BY created_at DESC");
+
 $totalPenjualan = 0;
 $totalPendapatan = 0;
 
 while ($jual = $penjualanQuery->fetch_assoc()) {
     $items = json_decode($jual['items'], true);
-    if (!$items) continue;
+    if (!is_array($items)) continue;
+
+    $isPenjualTerlibat = false;
+    $subtotal = 0;
 
     foreach ($items as $item) {
-        if (in_array($item['nama'], $namaProduks)) {
-            $totalPenjualan++;
-            $totalPendapatan += $jual['total_with_shipping'];
-            break; // hanya hitung 1x per transaksi
+        $namaProduk = $item['nama'] ?? '';
+        $jumlah = (int) ($item['jumlah'] ?? 0);
+        $harga = (int) ($item['harga'] ?? 0);
+
+        if (array_key_exists($namaProduk, $produkMap)) {
+            $isPenjualTerlibat = true;
+            $subtotal += $harga * $jumlah;
         }
+    }
+
+    if ($isPenjualTerlibat) {
+        $totalPenjualan++;
+        $totalPendapatan += $subtotal;
     }
 }
 
@@ -103,7 +116,7 @@ $totalPendapatan = $totalPendapatan ?? 0;
                     <div class="card text-center shadow-sm">
                         <div class="card-body">
                             <h5 class="card-title">Laporan Penjualan</h5>
-                            <p class="card-text">Total Transaksi: <strong><?= $totalPenjualan ?></strong></p>
+                            <p class="card-text">Total Jumlah Transaksi: <strong><?= $totalPenjualan ?></strong></p>
                             <p class="card-text">Pendapatan: <strong>Rp <?= number_format($totalPendapatan, 0, ',', '.') ?></strong></p>
                             <a href="laporan_penjualan.php" class="btn btn-primary w-100">Lihat Laporan</a>
                         </div>

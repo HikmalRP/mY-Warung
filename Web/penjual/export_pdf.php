@@ -6,61 +6,70 @@ require_once 'vendor/autoload.php';
 $db = new DBConnection();
 $penjual_id = $_SESSION['penjual_id'];
 
-// Ambil semua nama produk milik penjual
-$produkQuery = $db->conn->prepare("SELECT nama FROM db_produk WHERE id_penjual = ?");
+// Ambil produk milik penjual
+$produkQuery = $db->conn->prepare("SELECT nama, harga FROM db_produk WHERE id_penjual = ?");
 $produkQuery->bind_param("i", $penjual_id);
 $produkQuery->execute();
 $produkResult = $produkQuery->get_result();
-$namaProduks = [];
+
+$produkMap = []; // nama => harga
 while ($row = $produkResult->fetch_assoc()) {
-    $namaProduks[] = $row['nama'];
+    $produkMap[$row['nama']] = $row['harga'];
 }
 
-// Ambil semua penjualan
+// Ambil penjualan dan filter berdasarkan produk penjual
 $query = $db->conn->query("SELECT dj.*, du.username FROM db_jual dj JOIN db_user du ON dj.user_id = du.id ORDER BY dj.created_at DESC");
-$allSales = $query->fetch_all(MYSQLI_ASSOC);
-
-// Filter penjualan milik penjual
 $sales = [];
-foreach ($allSales as $sale) {
-    $items = json_decode($sale['items'], true);
+
+while ($jual = $query->fetch_assoc()) {
+    $items = json_decode($jual['items'], true);
     if (!is_array($items)) continue;
 
+    $subtotal = 0;
+    $terlibat = false;
+
     foreach ($items as $item) {
-        if (in_array($item['nama'], $namaProduks)) {
-            $sales[] = $sale;
-            break; // hanya satu kali hitungan per transaksi
+        $nama = $item['nama'] ?? '';
+        $jumlah = (int)($item['jumlah'] ?? 0);
+        if (isset($produkMap[$nama])) {
+            $subtotal += $produkMap[$nama] * $jumlah;
+            $terlibat = true;
         }
+    }
+
+    if ($terlibat) {
+        $jual['subtotal_penjual'] = $subtotal;
+        $sales[] = $jual;
     }
 }
 
 // Buat PDF
 $pdf = new TCPDF();
 $pdf->SetCreator(PDF_CREATOR);
-$pdf->SetAuthor('Admin');
+$pdf->SetAuthor('Penjual');
 $pdf->SetTitle('Laporan Penjualan');
 $pdf->SetHeaderData('', 0, 'Laporan Penjualan', '');
 $pdf->setHeaderFont(['helvetica', '', 10]);
 $pdf->setFooterFont(['helvetica', '', 8]);
 $pdf->AddPage();
 
-// Tabel Header
-$html = '<h1>Laporan Penjualan</h1>
+// HTML Header Tabel
+$html = '<h1 style="text-align:center;">Laporan Penjualan</h1>
 <table border="1" cellspacing="3" cellpadding="4">
     <thead>
-        <tr>
+        <tr style="font-weight: bold; background-color: #f2f2f2;">
             <th>No</th>
             <th>Username</th>
             <th>Asal</th>
             <th>Tujuan</th>
             <th>Kurir</th>
-            <th>Total Transaksi</th>
+            <th>Total Pendapatan</th>
             <th>Tanggal</th>
         </tr>
     </thead>
     <tbody>';
 
-// Isi Data
+// Isi Tabel
 foreach ($sales as $index => $sale) {
     $html .= '<tr>
         <td>' . ($index + 1) . '</td>
@@ -68,14 +77,14 @@ foreach ($sales as $index => $sale) {
         <td>' . htmlspecialchars($sale['origin']) . '</td>
         <td>' . htmlspecialchars($sale['destination']) . '</td>
         <td>' . htmlspecialchars($sale['courier']) . ' - ' . htmlspecialchars($sale['service']) . '</td>
-        <td>' . number_format($sale['total_with_shipping'], 0, ',', '.') . '</td>
+        <td>Rp ' . number_format($sale['subtotal_penjual'], 0, ',', '.') . '</td>
         <td>' . htmlspecialchars($sale['created_at']) . '</td>
     </tr>';
 }
 
 $html .= '</tbody></table>';
 
-// Tampilkan PDF
+// Cetak PDF
 $pdf->writeHTML($html, true, false, true, false, '');
 $pdf->Output('Laporan_Penjualan.pdf', 'I');
 exit;

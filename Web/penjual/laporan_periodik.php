@@ -8,13 +8,14 @@ $sales = [];
 $penjual_id = $_SESSION['penjual_id'];
 
 // Ambil produk milik penjual
-$produkQuery = $db->conn->prepare("SELECT nama FROM db_produk WHERE id_penjual = ?");
+$produkQuery = $db->conn->prepare("SELECT nama, harga FROM db_produk WHERE id_penjual = ?");
 $produkQuery->bind_param("i", $penjual_id);
 $produkQuery->execute();
 $produkResult = $produkQuery->get_result();
-$namaProduks = [];
+
+$produkMap = [];
 while ($row = $produkResult->fetch_assoc()) {
-    $namaProduks[] = $row['nama'];
+    $produkMap[$row['nama']] = $row['harga'];
 }
 
 // Filter laporan berdasarkan periode
@@ -31,11 +32,21 @@ if (isset($_POST['filter'])) {
         $items = json_decode($jual['items'], true);
         if (!is_array($items)) continue;
 
+        $subtotal = 0;
+        $penjualTerlibat = false;
+
         foreach ($items as $item) {
-            if (in_array($item['nama'], $namaProduks)) {
-                $sales[] = $jual;
-                break;
+            $nama = $item['nama'] ?? '';
+            $jumlah = (int)($item['jumlah'] ?? 0);
+            if (isset($produkMap[$nama])) {
+                $subtotal += $produkMap[$nama] * $jumlah;
+                $penjualTerlibat = true;
             }
+        }
+
+        if ($penjualTerlibat) {
+            $jual['subtotal_penjual'] = $subtotal;
+            $sales[] = $jual;
         }
     }
 }
@@ -91,11 +102,11 @@ if (isset($_POST['filter'])) {
         <form method="POST" class="row g-3 mb-4">
             <div class="col-md-5">
                 <label for="start_date" class="form-label">Dari Tanggal</label>
-                <input type="date" id="start_date" name="start_date" class="form-control" required>
+                <input type="date" id="start_date" name="start_date" class="form-control" required value="<?= $_POST['start_date'] ?? '' ?>">
             </div>
             <div class="col-md-5">
                 <label for="end_date" class="form-label">Sampai Tanggal</label>
-                <input type="date" id="end_date" name="end_date" class="form-control" required>
+                <input type="date" id="end_date" name="end_date" class="form-control" required value="<?= $_POST['end_date'] ?? '' ?>">
             </div>
             <div class="col-md-2 d-flex align-items-end">
                 <button type="submit" name="filter" class="btn btn-primary w-100">Filter</button>
@@ -120,7 +131,7 @@ if (isset($_POST['filter'])) {
                             <th>Asal</th>
                             <th>Tujuan</th>
                             <th>Kurir</th>
-                            <th>Total Transaksi</th>
+                            <th>Total Pendapatan</th>
                             <th>Tanggal</th>
                         </tr>
                     </thead>
@@ -133,7 +144,7 @@ if (isset($_POST['filter'])) {
                                     <td><?= htmlspecialchars($sale['origin'], ENT_QUOTES, 'UTF-8') ?></td>
                                     <td><?= htmlspecialchars($sale['destination'], ENT_QUOTES, 'UTF-8') ?></td>
                                     <td><?= htmlspecialchars($sale['courier'], ENT_QUOTES, 'UTF-8') ?> - <?= htmlspecialchars($sale['service'], ENT_QUOTES, 'UTF-8') ?></td>
-                                    <td>Rp <?= number_format($sale['total_with_shipping'], 0, ',', '.') ?></td>
+                                    <td>Rp <?= number_format($sale['subtotal_penjual'], 0, ',', '.') ?></td>
                                     <td><?= htmlspecialchars($sale['created_at'], ENT_QUOTES, 'UTF-8') ?></td>
                                 </tr>
                             <?php endforeach; ?>

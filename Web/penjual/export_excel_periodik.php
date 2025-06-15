@@ -1,7 +1,7 @@
 <?php
 require_once '../db_connection.php';
 require_once 'auth_penjual.php';
-require 'vendor/autoload.php'; // Pastikan library PhpSpreadsheet terinstal
+require 'vendor/autoload.php'; // Pastikan PhpSpreadsheet terinstal
 
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -11,34 +11,42 @@ $penjual_id = $_SESSION['penjual_id'];
 $start_date = $_GET['start_date'] . " 00:00:00";
 $end_date = $_GET['end_date'] . " 23:59:59";
 
-// Ambil nama produk milik penjual
-$produkQuery = $db->conn->prepare("SELECT nama FROM db_produk WHERE id_penjual = ?");
+// Ambil produk milik penjual
+$produkQuery = $db->conn->prepare("SELECT nama, harga FROM db_produk WHERE id_penjual = ?");
 $produkQuery->bind_param("i", $penjual_id);
 $produkQuery->execute();
 $produkResult = $produkQuery->get_result();
-$produkNama = [];
+$produkMap = []; // nama => harga
 while ($row = $produkResult->fetch_assoc()) {
-    $produkNama[] = $row['nama'];
+    $produkMap[$row['nama']] = $row['harga'];
 }
 
-// Ambil semua transaksi dalam rentang tanggal
+// Ambil transaksi dalam rentang waktu
 $query = $db->conn->prepare("SELECT dj.*, du.username FROM db_jual dj JOIN db_user du ON dj.user_id = du.id WHERE dj.created_at BETWEEN ? AND ? ORDER BY dj.created_at DESC");
 $query->bind_param("ss", $start_date, $end_date);
 $query->execute();
 $result = $query->get_result();
-$allSales = $result->fetch_all(MYSQLI_ASSOC);
 
-// Filter penjualan yang hanya milik penjual ini
 $sales = [];
-foreach ($allSales as $sale) {
-    $items = json_decode($sale['items'], true);
+while ($jual = $result->fetch_assoc()) {
+    $items = json_decode($jual['items'], true);
     if (!is_array($items)) continue;
 
+    $subtotal = 0;
+    $terlibat = false;
+
     foreach ($items as $item) {
-        if (in_array($item['nama'], $produkNama)) {
-            $sales[] = $sale;
-            break;
+        $nama = $item['nama'] ?? '';
+        $jumlah = (int)($item['jumlah'] ?? 0);
+        if (isset($produkMap[$nama])) {
+            $subtotal += $produkMap[$nama] * $jumlah;
+            $terlibat = true;
         }
+    }
+
+    if ($terlibat) {
+        $jual['subtotal_penjual'] = $subtotal;
+        $sales[] = $jual;
     }
 }
 
@@ -53,7 +61,7 @@ $sheet->setCellValue('B1', 'Username');
 $sheet->setCellValue('C1', 'Asal');
 $sheet->setCellValue('D1', 'Tujuan');
 $sheet->setCellValue('E1', 'Kurir');
-$sheet->setCellValue('F1', 'Total Transaksi');
+$sheet->setCellValue('F1', 'Total Pendapatan');
 $sheet->setCellValue('G1', 'Tanggal');
 
 // Isi Data
@@ -64,14 +72,14 @@ foreach ($sales as $index => $sale) {
     $sheet->setCellValue('C' . $row, $sale['origin']);
     $sheet->setCellValue('D' . $row, $sale['destination']);
     $sheet->setCellValue('E' . $row, $sale['courier'] . ' - ' . $sale['service']);
-    $sheet->setCellValue('F' . $row, $sale['total_with_shipping']);
+    $sheet->setCellValue('F' . $row, $sale['subtotal_penjual']);
     $sheet->setCellValue('G' . $row, $sale['created_at']);
     $row++;
 }
 
 // Ekspor ke Excel
 $writer = new Xlsx($spreadsheet);
-$fileName = 'Laporan_Periodik.xlsx';
+$fileName = 'Laporan_Periodik_Penjual.xlsx';
 
 header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 header('Content-Disposition: attachment;filename="' . $fileName . '"');
